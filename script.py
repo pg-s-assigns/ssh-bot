@@ -1,27 +1,27 @@
 import telebot
 import logging
+import argparse
 
-logger = logging.Logger(__name__, level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s : %(message)s",
+                    level=logging.INFO, datefmt="%H:%M:%S")
 
-WHITELIST = []
-bot = telebot.TeleBot(
-    "", parse_mode=None)
+parser = argparse.ArgumentParser(description='Argument parser')
+parser.add_argument('--token', type=str, help='Telegram token', required=True)
+parser.add_argument('--users', nargs='+', help='Whitelisted users', required=True)
+
+args = parser.parse_args()
+WHITELIST = list(args.users)
+logging.info(WHITELIST)
+bot = telebot.TeleBot(args.token, parse_mode=None)
+bot.infinity_polling()
+
+
+def whitelisted(user=None):
+    return user in WHITELIST
 
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    logger.info(message.from_user)
-
-    if message.from_user.username not in WHITELIST:
-        return
-
-    bot.reply_to(message, "Howdy, how are you doing?")
-
-
-@bot.message_handler(func=lambda m: True)
-def echo_all(message):
-    bot.reply_to(message, message.text)
-
-
-if __name__ == '__main__':
-    bot.infinity_polling()
+    logging.info(message.from_user)
+    if whitelisted(message.from_user.username):
+        bot.reply_to(message, "Howdy, how are you doing?")
