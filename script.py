@@ -11,24 +11,23 @@ logging.basicConfig(format="%(asctime)s : %(message)s",
 
 parser = argparse.ArgumentParser(description='Argument parser')
 parser.add_argument('--token', type=str, help='Telegram token', required=True)
-parser.add_argument('--users', nargs='+', help='Whitelisted users', required=True)
+parser.add_argument('--chats', nargs='*', help='Whitelisted chats', default=[])
 
 args = parser.parse_args()
 EXECUTION_TIMEOUT = 2.0
-WHITELIST = list(args.users)
+WHITELIST = list(args.chats)
 logging.info(WHITELIST)
 bot = telebot.TeleBot(args.token, parse_mode=None)
 
 
-def whitelisted(user=None):
-    return user in WHITELIST
+def whitelisted(chat_id=None):
+    return chat_id in WHITELIST
 
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    logging.info(message.from_user)
-    if whitelisted(message.from_user.username):
-        bot.reply_to(message, "Howdy, how are you doing?")
+@bot.message_handler(commands=['start', 'help', 'chatid'])
+def start(message):
+    logging.info('/start from {} {}'.format(message.from_user.username, message.chat.id))
+    bot.reply_to(message, "ChatID: {}".format(message.chat.id))
 
 
 @bot.message_handler(func=lambda _: True)
