@@ -24,16 +24,16 @@ def whitelisted(chat_id=None):
     return chat_id in WHITELIST
 
 
-@bot.message_handler(commands=['start', 'help', 'chatid'])
-def start(message):
-    logging.info('/start from {} {}'.format(message.from_user.username, message.chat.id))
+@bot.message_handler(commands=['start', 'help', 'chatid', 'info'])
+def info(message):
+    logging.info('/info from {} {}'.format(message.from_user.username, message.chat.id))
     bot.reply_to(message, "ChatID: {}".format(message.chat.id))
 
 
-@bot.message_handler(func=lambda _: True)
-def execute_command(message):
-    logging.info(message.from_user)
-    if not whitelisted(message.from_user.username):
+@bot.message_handler(commands=['exec'])
+def exec(message):
+    logging.info('/exec from {} {}'.format(message.from_user.username, message.chat.id))
+    if not whitelisted(message.chat.id):
         return
 
     process = subprocess.run(message.text, shell=True, capture_output=True)
