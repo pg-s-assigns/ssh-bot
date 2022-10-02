@@ -15,9 +15,38 @@ parser.add_argument('--chats', nargs='*', help='Whitelisted chats', default=[])
 
 args = parser.parse_args()
 EXECUTION_TIMEOUT = 2.0
-WHITELIST = list(args.chats)
-logging.info(WHITELIST)
+WHITELIST = set([int(chat) for chat in args.chats])
+logging.info('Whiteliste chats: ' + str(WHITELIST))
 bot = telebot.TeleBot(args.token, parse_mode=None)
+
+chat_to_subprocess = dict()
+
+
+class SubprocessOutputHandler(threading.Thread):
+    def __init__(self, chat_id, output_stream):
+        super().__init__()
+        self.__chat_id = chat_id
+        self.__output_stream = output_stream
+
+    
+    def run(self):
+        while True:
+            output = self.__output_stream.readline()
+            if output:
+                bot.send_message(self.__chat_id, output)
+
+
+class Subprocess:
+    def __init__(self, chat_id):
+        self.__chat_id = chat_id
+        self.__process = subprocess.Popen(['/bin/sh'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        self.__output_handler = SubprocessOutputHandler(chat_id, self.__process.stdout)
+        self.__output_handler.start()
+
+
+    def add_symbols(self, symbols):
+        self.__process.stdin.write(bytes(symbols, 'UTF-8'))
+        self.__process.stdin.flush()
 
 
 def whitelisted(chat_id=None):
@@ -36,10 +65,11 @@ def exec(message):
     if not whitelisted(message.chat.id):
         return
 
-    process = subprocess.run(message.text, shell=True, capture_output=True)
-    time.sleep(EXECUTION_TIMEOUT)
+    if message.chat.id not in chat_to_subprocess:
+        chat_to_subprocess[message.chat.id] = Subprocess(message.chat.id)
 
-    bot.reply_to(message, process.stdout)
+    chat_to_subprocess[message.chat.id].add_symbols(message.text[len('/exec '):] + '\n')
+
 
 if __name__ == '__main__':
     bot.infinity_polling()
