@@ -1,10 +1,12 @@
 import telebot
 import logging
 import argparse
-import os
 import threading
 import time
 import subprocess
+
+MAX_TG_MESSAGE_LENGTH = 4096
+SLEEP_AFTER_READ = 0.5
 
 logging.basicConfig(format="%(asctime)s : %(message)s",
                     level=logging.INFO, datefmt="%H:%M:%S")
@@ -14,7 +16,6 @@ parser.add_argument('--token', type=str, help='Telegram token', required=True)
 parser.add_argument('--chats', nargs='*', help='Whitelisted chats', default=[])
 
 args = parser.parse_args()
-EXECUTION_TIMEOUT = 2.0
 WHITELIST = set([int(chat) for chat in args.chats])
 logging.info('Whiteliste chats: ' + str(WHITELIST))
 bot = telebot.TeleBot(args.token, parse_mode=None)
@@ -27,13 +28,18 @@ class SubprocessOutputHandler(threading.Thread):
         super().__init__()
         self.__chat_id = chat_id
         self.__output_stream = output_stream
+        self.__buffer = ''
 
     
     def run(self):
         while True:
-            output = self.__output_stream.readline()
-            if output:
-                bot.send_message(self.__chat_id, output)
+            readen_output = self.__output_stream.read1(MAX_TG_MESSAGE_LENGTH)
+            if readen_output:
+                self.__buffer += readen_output
+                time.sleep(SLEEP_AFTER_READ)
+            elif self.__buffer:
+                bot.send_message(self.__chat_id, self.__buffer)
+                self.__buffer = ''
 
 
 class Subprocess:
@@ -67,6 +73,7 @@ def exec(message):
 
     if message.chat.id not in chat_to_subprocess:
         chat_to_subprocess[message.chat.id] = Subprocess(message.chat.id)
+
 
     chat_to_subprocess[message.chat.id].add_symbols(message.text[len('/exec '):] + '\n')
 
