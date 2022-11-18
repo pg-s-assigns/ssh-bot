@@ -1,10 +1,14 @@
 import telebot
 import logging
 import argparse
-import os
 import threading
 import time
 import subprocess
+import datetime
+
+MAX_TG_MESSAGE_LENGTH = 4096
+SLEEP_AFTER_READ = 0.5
+OUTPUT_ENCODING = 'UTF-8'
 
 logging.basicConfig(format="%(asctime)s : %(message)s",
                     level=logging.INFO, datefmt="%H:%M:%S")
@@ -14,7 +18,6 @@ parser.add_argument('--token', type=str, help='Telegram token', required=True)
 parser.add_argument('--chats', nargs='*', help='Whitelisted chats', default=[])
 
 args = parser.parse_args()
-EXECUTION_TIMEOUT = 2.0
 WHITELIST = set([int(chat) for chat in args.chats])
 logging.info('Whiteliste chats: ' + str(WHITELIST))
 bot = telebot.TeleBot(args.token, parse_mode=None)
@@ -31,21 +34,22 @@ class SubprocessOutputHandler(threading.Thread):
     
     def run(self):
         while True:
-            output = self.__output_stream.readline()
-            if output:
-                bot.send_message(self.__chat_id, output)
+            readen_output = self.__output_stream.read1(MAX_TG_MESSAGE_LENGTH).decode(OUTPUT_ENCODING)
+            time.sleep(SLEEP_AFTER_READ)
+            bot.send_message(self.__chat_id, readen_output)
+
 
 
 class Subprocess:
     def __init__(self, chat_id):
         self.__chat_id = chat_id
-        self.__process = subprocess.Popen(['/bin/sh'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        self.__process = subprocess.Popen(['/bin/sh'], shell=True, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.__output_handler = SubprocessOutputHandler(chat_id, self.__process.stdout)
         self.__output_handler.start()
 
 
     def add_symbols(self, symbols):
-        self.__process.stdin.write(bytes(symbols, 'UTF-8'))
+        self.__process.stdin.write(bytes(symbols, OUTPUT_ENCODING))
         self.__process.stdin.flush()
 
 
@@ -67,6 +71,7 @@ def exec(message):
 
     if message.chat.id not in chat_to_subprocess:
         chat_to_subprocess[message.chat.id] = Subprocess(message.chat.id)
+
 
     chat_to_subprocess[message.chat.id].add_symbols(message.text[len('/exec '):] + '\n')
 
