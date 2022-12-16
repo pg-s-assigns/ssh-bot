@@ -75,6 +75,20 @@ def exec(message):
     chat_to_subprocess[message.chat.id].add_symbols(
         message.text[len('/exec '):] + '\n')
 
+@bot.message_handler(commands=['download'])
+def download(message):
+    logging.info('/download from {} {}'.format(message.from_user.username, message.chat.id))
+
+    if not whitelisted(message.chat.id):
+        return
+
+    filename = message.text[len('/download '):]
+
+    with open(filename, 'rb') as misc:
+        f = misc.read()
+
+    bot.send_document(message.chat.id, f)
+
 
 if __name__ == '__main__':
     bot.infinity_polling()
