@@ -75,6 +75,34 @@ def exec(message):
     chat_to_subprocess[message.chat.id].add_symbols(
         message.text[len('/exec '):] + '\n')
 
+
+@bot.message_handler(content_types=['document'])
+def upload(message):
+    if not message.caption.startswith('/upload'):
+        return
+
+    logging.info('/upload from {} {}'.format(message.from_user.username, message.chat.id))
+
+    if not whitelisted(message.chat.id):
+        return
+
+    logging.info(message.document)
+
+    path = message.caption[len('/upload '):].strip()
+    if not path or path[0] != '/':
+        bot.reply_to(message, 'Please specify absolute path to file')
+        return
+
+    file_info = bot.get_file(message.document.file_id)
+    file_data = bot.download_file(file_info.file_path)
+
+    try:
+        with open(path, 'wb') as file:
+            file.write(file_data)
+    except Exception:
+        bot.reply_to(message, f'Bad uploading')
+
+
 @bot.message_handler(commands=['download'])
 def download(message):
     logging.info('/download from {} {}'.format(message.from_user.username, message.chat.id))
@@ -82,12 +110,19 @@ def download(message):
     if not whitelisted(message.chat.id):
         return
 
-    filename = message.text[len('/download '):]
+    path = message.text[len('/download '):].strip()
+    if not path or path[0] != '/':
+        bot.reply_to(message, 'Please specify absolute path to file')
+        return
 
-    with open(filename, 'rb') as misc:
-        f = misc.read()
+    try:
+        with open(path, 'rb') as file:
+            bot.send_document(message.chat.id, document=file)
+    except FileNotFoundError:
+        bot.reply_to(message, f'There is no file at path {path}')
 
-    bot.send_document(message.chat.id, f)
+
+
 
 
 if __name__ == '__main__':
