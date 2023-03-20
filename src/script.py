@@ -122,8 +122,5 @@ def download(message):
         bot.reply_to(message, f'There is no file at path {path}')
 
 
-
-
-
 if __name__ == '__main__':
     bot.infinity_polling()
